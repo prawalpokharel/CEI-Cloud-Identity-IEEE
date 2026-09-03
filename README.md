@@ -20,12 +20,13 @@ ground truth of increasing realism.
 |------|--------------|---------|
 | **A — synthetic** | exact consequence from a seeded generative model | `estate.py`, `methods.py`, `run_e2.py`, `run_e3_e5.py`, `run_e7.py`, `run_e12.py` |
 | **B — production engine** | Iverson Cloud dependency engine over 5 real topologies | `engine_harness.py`, `run_e8_real_engine.py`, `run_e9.py`, `run_e10_e11.py` |
-| **C — live cluster (observed)** | real fault injection + real credential compromise | `tierc_real_v6.sh`, `analyze_tierc_real.py`, `ci_experiment.py` |
+| **C — live cluster (observed)** | real availability fault injection, real credential/integrity compromise, off-distribution app | `tierc_real_v6.sh`, `analyze_tierc_real.py`, `ci_experiment.py`, `integrity_experiment.py`, `bookinfo_experiment.py` |
 | C&nbsp;model extensions | 3-channel C/I model, capability severity | `extensions.py`, `run_ext.py` |
 
 Tier C is the key methodological contribution over the accepted version: ground truth
 is **observed system behavior**, not the engine's own computation, which removes the
-circularity concern for the availability and confidentiality channels.
+computed-oracle circularity for the availability, confidentiality, and integrity
+channels, and reproduces the availability result on an off-distribution application.
 
 ## Layout
 
@@ -58,6 +59,16 @@ requirements.txt
   exfiltration (ρ = 1.00) where a dependency-only view (ρ = 0.691) misses the
   misconfigs; a read-only agent identity exfiltrates 0 secrets. Tears down the
   namespace on completion.
+- **`integrity_experiment.py`** — real integrity-compromise (the dual of confidentiality):
+  real ConfigMaps as data-of-record + real UPDATE RBAC (+ planted write-misconfigurations);
+  "compromise" each identity by actually corrupting the data it can write and measure the
+  corruption reach up the dependency graph. RBAC-aware integrity score reproduces the measured
+  reach (rho=1.00) where a dependency-only view (rho=0.259) misses the write-misconfigs; the
+  read-only agent corrupts 0 stores.
+- **`bookinfo_experiment.py`** — OFF-DISTRIBUTION fault injection on Istio Bookinfo (an app the
+  dependency heuristic was never tuned on): the productpage renders (HTTP 200) when details or
+  reviews are removed and only goes down when the productpage itself is removed — the
+  confidence-aware prediction matches all cases, the naive static graph over-predicts.
 - **`run_tierc_mesh.py`** — a controlled process-mesh replica of the Online Boutique
   topology (pure Python, no cluster), a lighter-weight cross-check of the fault
   injection result.

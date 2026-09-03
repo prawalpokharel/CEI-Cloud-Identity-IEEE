@@ -1,0 +1,38 @@
+setting up namespace int-exp ...
+
+identity                   MEASURED corrupted-output set (real writes + reads)
+sa-frontend               ['frontend']
+sa-checkoutservice        ['checkoutservice', 'frontend']
+sa-cartservice            ['cartservice', 'checkoutservice', 'frontend']
+sa-recommendationservice  ['cartservice', 'checkoutservice', 'frontend', 'recommendationservice']
+sa-adservice              ['adservice', 'checkoutservice', 'frontend', 'productcatalogservice', 'recommendationservice']
+sa-currencyservice        ['checkoutservice', 'currencyservice', 'frontend']
+sa-emailservice           ['checkoutservice', 'currencyservice', 'emailservice', 'frontend']
+sa-paymentservice         ['checkoutservice', 'frontend', 'paymentservice']
+sa-productcatalogservice  ['checkoutservice', 'frontend', 'productcatalogservice', 'recommendationservice']
+sa-redis-cart             ['cartservice', 'checkoutservice', 'frontend', 'redis-cart']
+sa-shippingservice        ['checkoutservice', 'frontend', 'shippingservice']
+
+sa-agent-ro corrupted: []  (expect EMPTY -> read-only agent cannot tamper)
+sa-ops      corrupted: 11/11 data stores
+
+identity                 #reach measCrit IBR-rbac dep-only  permcnt
+sa-frontend                  1      1.5      1.5      1.5        1
+sa-checkoutservice           2      3.0      3.0      3.0        1
+sa-cartservice               3      4.0      4.0      4.0        1
+sa-recommendationservice      4      5.0      5.0      2.5        2  <-write-misconfig
+sa-adservice                 5      6.0      6.0      2.5        2  <-write-misconfig
+sa-currencyservice           3      4.0      4.0      4.0        1
+sa-emailservice              4      5.0      5.0      4.0        2  <-write-misconfig
+sa-paymentservice            3      4.0      4.0      4.0        1
+sa-productcatalogservice      4      5.0      5.0      5.0        1
+sa-redis-cart                4      5.0      5.0      5.0        1
+sa-shippingservice           3      4.0      4.0      4.0        1
+
+=== integrity blast radius vs REAL measured corruption reach ===
+  Spearman(IBR-integrity w/ real RBAC, measured):  1.000
+  Spearman(dependency-graph-only pred, measured):  0.259
+  Spearman(permission-count baseline,  measured):  0.677
+  agent-ro corrupted 0 stores (tamper-safety validated)
+
+[exited with code 0]

@@ -46,10 +46,10 @@ scale-to-zero fault injection on Google's Online Boutique, the consequence-aware
 prediction tracks \emph{observed} per-service outages at $\rho=0.987$ (versus
 $0.778$ for a naive static graph) and predicted identity blast radius tracks that
 observed consequence at $\rho=0.958$; and under a \emph{real credential-compromise}
-experiment with live RBAC, predicted confidentiality blast radius reproduces the actually
-exfiltrated secret set, catching over-privilege misconfigurations that a
-dependency-only view ($\rho=0.69$) misses---while a read-only collector identity
-exfiltrates nothing. Because ground truth in these experiments is observed system
+experiments with live RBAC, predicted confidentiality and integrity blast radius
+reproduce the actually exfiltrated secrets and corrupted data, catching over-privilege
+that dependency-only views ($\rho=0.69$, $0.26$) miss---while a read-only agent identity
+neither reads nor tampers, and the availability result reproduces off-distribution. Because ground truth in these experiments is observed system
 behavior rather than the engine's own computation, they remove the circularity
 concern for the availability and confidentiality channels. The effect is
 actionable: consequence-guided revocation removes $1.5$--$1.7\times$ more true risk
@@ -278,12 +278,14 @@ estimator and oracle share dependency structure. Tier C removes that objection b
 measuring \emph{observed} consequence on a live cluster. We deploy the real Online
 Boutique (eleven microservices) on Kubernetes and, for the availability channel,
 inject faults by scaling each service to zero and recording which real user-facing
-flows break over HTTP; for the confidentiality channel, we stand up real Kubernetes
-Secrets, ServiceAccounts, and RBAC and ``compromise'' each identity by actually
-reading the secrets its credentials reach, chaining laterally. Ground truth in
-Tier~C is measured system behavior, not any computation of ours. Before an
-identity's kill/compromise we confirm the target is truly removed and the baseline
-is healthy, isolating each measurement.
+flows break over HTTP; for the confidentiality and integrity channels, we stand up
+real Kubernetes Secrets, ConfigMaps, ServiceAccounts, and RBAC and ``compromise'' each
+identity by actually reading the secrets, and corrupting the data-of-record, its
+credentials reach---chaining laterally. Ground truth in Tier~C is measured system
+behavior, not any computation of ours. Before an identity's kill/compromise we confirm
+the target is truly removed and the baseline is healthy, isolating each measurement. To
+test generalization beyond the app the dependency heuristic was developed on, we repeat
+the availability fault injection on Istio's Bookinfo (Section~\ref{sec:offdist}).
 
 \textbf{Protocol and metrics.} Every experiment scores each identity with the full
 battery and compares each method's induced ranking to the ground-truth ranking. We
@@ -402,13 +404,14 @@ availability channel.
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{figures/fig_tierc_real.png}
-\caption{Real fault injection on the live Online Boutique. The naive static graph
-over-predicts on the three gracefully-degrading services (ad/email/recommendation);
-the confidence-aware prediction matches observed reality ($\rho=0.987$).}
+\caption{Real fault injection on the live Online Boutique (availability channel). The
+naive static graph over-predicts on the three gracefully-degrading services
+(ad/email/recommendation); the confidence-aware prediction matches observed reality
+($\rho=0.987$).}
 \label{fig:tierc}
 \end{figure}
 
-\subsection{Confidentiality consequence, modeled and measured}
+\subsection{Confidentiality and integrity, measured under real compromise}
 \label{sec:ci-results}
 \label{sec:real-conf}
 We validate the confidentiality channel (Eq.~\eqref{eq:conf}) twice. First, on
@@ -442,15 +445,47 @@ identity restricted to \texttt{get/list/watch} on pods and services---the postur
 a production topology agent---exfiltrates \emph{zero} secrets under real compromise,
 a checkable safety property.
 
-\begin{figure}[t]
+\emph{Integrity} is the dual, and we measure it the same way. We create a ConfigMap
+data-of-record per service, grant real \texttt{update} RBAC on the data each service
+legitimately writes---plus three over-privilege \emph{write} misconfigurations (the ad
+service able to rewrite the product catalog, email the exchange rates, recommendation
+the cart)---and compromise each identity by \emph{actually corrupting}
+(\texttt{patch -{}-as}) every ConfigMap its RBAC permits, reading the store back to
+confirm the tamper. Corruption propagates \emph{up} to every dependent that consumes
+the bad data. The dependency-only prediction, which assumes each identity writes only
+its own data, collapses to $\rho=0.259$ because it is blind to the write
+misconfigurations that hand a low-value identity a high-fan-out store; the RBAC-aware
+integrity score reproduces the measured corruption reach ($\rho=1.00$), and the
+read-only agent identity corrupts \emph{zero} stores. In both channels the
+dependency-only view misses exactly the planted misconfigurations, and extracting the
+real authorization graph is what recovers them (Fig.~\ref{fig:conf}).
+
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{figures/fig_ci_compromise.png}
-\caption{Real credential-compromise on the live cluster: measured secret
-exfiltration vs.\ a dependency-only prediction. The dependency-only view misses the
-three planted over-privilege misconfigurations; the RBAC-aware confidentiality score
-reproduces the exfiltrated set.}
+\includegraphics[width=\textwidth]{figures/fig_ci_integrity.png}
+\caption{Real credential-compromise (left, confidentiality: measured secret
+exfiltration) and data-tampering (right, integrity: measured corruption reach) on the
+live cluster, each versus a dependency-only prediction. The dependency-only view
+misses the planted over-privilege misconfigurations (red labels); the RBAC-aware score
+reproduces the measured reach in both channels.}
 \label{fig:conf}
-\end{figure}
+\end{figure*}
+
+\subsection{Off-distribution validation}
+\label{sec:offdist}
+A residual concern is that the dependency heuristic was developed on Online Boutique,
+so an observed match there is not by itself evidence of generalization. We therefore
+repeat the availability fault injection on Istio's Bookinfo---an application the
+heuristic was never tuned on, with a different topology (a productpage aggregating a
+details service and a reviews service, itself backed by ratings). Under real
+scale-to-zero fault injection the user-facing page renders (HTTP~200) when either
+backend is removed, degrading only the corresponding section, and goes down only when
+the productpage itself is removed. The confidence-aware prediction---that only the
+frontend's own failure breaks the page---matches all three observed cases, while the
+naive static graph over-predicts, flagging the two gracefully-degrading backends as
+page-breaking. The graceful-degradation phenomenon, and the confidence-aware model's
+advantage over the static graph, thus reproduce on an application outside the
+heuristic's development distribution.
 
 \subsection{Where the capability ladder matters}
 The capability effects reported here are weight ablations against constructed and
@@ -507,10 +542,12 @@ live cluster---ranking identities by propagated infrastructure consequence is
 substantially more faithful to true risk than ranking by access, the two rankings
 disagree on the identities that matter most, and consequence guidance changes
 remediation for the better. The live-cluster experiments are the strongest evidence:
-they validate predicted availability blast radius against measured outages and
-predicted confidentiality blast radius against measured exfiltration, and because
-ground truth there is observed rather than computed, they remove the circularity
-concern for those two channels.
+they validate predicted availability blast radius against measured outages, and
+predicted confidentiality and integrity blast radius against measured exfiltration and
+data-tampering; because ground truth there is observed rather than computed, they
+remove the computed-oracle circularity---decisively for availability, whose oracle is
+fully independent, and for confidentiality and integrity up to the shared-RBAC caveat
+below.
 
 \textbf{Scope of the independence claim.} We are precise about what the live
 experiments establish. The fault-injection oracle and the estimator both derive
@@ -518,17 +555,16 @@ connectivity from the same deployment manifests, so their independence is
 \emph{behavioral}---whether a declared edge actually propagates failure, given
 graceful degradation and caching, which the graph does not encode---rather than
 \emph{structural}. The graceful-degradation and caching divergences we report are
-evidence of that non-identity. A stronger independence claim would inject faults on
-an application the dependency heuristic was not developed on; we treat the present
-single-application study as an existence proof of observed validation, not as
-off-distribution generalization. Similarly, the confidentiality $\rho=1.00$ reflects
-that the estimator consumes the same real RBAC the compromise traverses; its content
-is the contrast with the dependency-only $0.69$, not the absolute value.
+evidence of that non-identity. To probe generalization beyond the app the heuristic was
+tuned on, we repeat the fault injection on Bookinfo (Section~\ref{sec:offdist}), where
+the same graceful-degradation pattern and confidence-aware advantage hold; still, both
+live studies are small and single-cluster, and broader multi-application, multi-cluster
+validation remains future work. Separately, the confidentiality and integrity
+$\rho=1.00$ reflect that the estimator consumes the same real RBAC the compromise
+traverses; their content is the contrast with the dependency-only $0.69$ and $0.26$,
+not the absolute value.
 
-\textbf{Open items.} Integrity is modeled (Section~\ref{sec:ci}) and composes into
-the same graph but is not yet separately measured under compromise; a
-destructive-write oracle analogous to the confidentiality experiment is the natural
-next step. Usage evidence---whether a high-consequence permission is ever
+\textbf{Open items.} Usage evidence---whether a high-consequence permission is ever
 exercised---is complementary and currently absent: a dormant grant and an actively
 used one receive the same score, and the confidentiality result makes this the most
 consequential gap, since it now elevates exactly the secret-reading identities for
@@ -555,10 +591,11 @@ dependency graph across availability, confidentiality, and integrity channels, a
 demonstrated---against exact synthetic ground truth, a production engine over five
 real topologies, and \emph{observed} behavior on a live Kubernetes cluster---that
 consequence-aware ranking is markedly more faithful to true risk. On real fault
-injection the prediction tracks observed outages at $\rho=0.987$; on real credential
-compromise it reproduces the exfiltrated secret set and catches over-privilege that a
-dependency-only view misses, while a read-only agent identity exfiltrates zero
-secrets under real compromise. As
+injection the prediction tracks observed outages at $\rho=0.987$ (and reproduces on an
+off-distribution application); on real credential-compromise and data-tampering it
+reproduces the exfiltrated and corrupted sets and catches over-privilege that
+dependency-only views miss, while a read-only agent identity neither reads nor tampers
+with any store. As
 identity sprawl outpaces human review, prioritizing identity risk by propagated
 consequence rather than by access is both necessary and, on top of dependency
 analysis that infrastructure already performs, practical.
