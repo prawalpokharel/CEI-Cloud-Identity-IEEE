@@ -42,9 +42,10 @@ $\rho=0.67$--$0.74$ with true consequence, while the strongest reachability
 baseline reaches only $0.29$--$0.44$. We then close the paper's central
 methodological gap with \emph{real} experiments on a live Kubernetes cluster: under
 scale-to-zero fault injection on Google's Online Boutique, the consequence-aware
-prediction tracks \emph{observed} outages at $\rho=0.987$ (versus $0.778$ for a
-naive static graph), and under a \emph{real credential-compromise} experiment with
-live RBAC, predicted confidentiality blast radius reproduces the actually
+prediction tracks \emph{observed} per-service outages at $\rho=0.987$ (versus
+$0.778$ for a naive static graph) and predicted identity blast radius tracks that
+observed consequence at $\rho=0.958$; and under a \emph{real credential-compromise}
+experiment with live RBAC, predicted confidentiality blast radius reproduces the actually
 exfiltrated secret set, catching over-privilege misconfigurations that a
 dependency-only view ($\rho=0.69$) misses---while a read-only collector identity
 exfiltrates nothing. Because ground truth in these experiments is observed system
@@ -213,9 +214,8 @@ sensitivity $\sigma(s)$,
 $\pi(c)$: corrupting $r$ propagates to the dependents $\Delta(r)$ that trust $r$'s
 data. The combined consequence is the normalized sum of the three channels. This
 extension is what lets the framework score a pure secret-reader---invisible to
-Eq.~\eqref{eq:ibr}---and is validated both on synthetic ground truth
-(Section~\ref{sec:ci-results}) and against real exfiltration
-(Section~\ref{sec:real-conf}).
+Eq.~\eqref{eq:ibr}---and is validated both on synthetic ground truth and against
+real exfiltration (Section~\ref{sec:ci-results}).
 
 \subsection{Reachability baselines as degenerate cases}
 Setting the downstream term to zero ($\lambda=0$, $\kappa$ constant) reduces
@@ -329,8 +329,9 @@ latter, and no reachability metric can express the difference.
 \centering
 \includegraphics[width=\columnwidth]{figures/fig_e8_real_engine.png}
 \caption{Ranking fidelity against ground truth from the production engine over
-Online Boutique (30 populations, 400 identities each). Every reachability baseline
-collapses to $\rho=0.31$; the dependency join reaches $0.71$.}
+Online Boutique (30 populations, 400 identities each). The resource-counting baselines
+collapse to $\rho=0.31$ (privileged-role counting lower still, $0.14$); the dependency
+join reaches $0.71$.}
 \label{fig:engine}
 \end{figure}
 
@@ -392,7 +393,9 @@ frontend \emph{caches} their data---a stateful runtime effect no static graph
 captures, and a concrete instance of the dynamic-behavior gap we discuss in
 Section~\ref{sec:disc}. Crucially, because ground truth here is observed HTTP
 failure rather than the engine's own computation, estimator and oracle no longer
-share a computed structure: this result removes the circularity concern for the
+share a computed \emph{output}---though both still derive connectivity from the same
+deployment manifests, so the independence is behavioral, not structural
+(Section~\ref{sec:disc}). This removes the computed-oracle circularity for the
 availability channel.
 
 \begin{figure}[t]
@@ -449,15 +452,18 @@ reproduces the exfiltrated set.}
 \end{figure}
 
 \subsection{Where the capability ladder matters}
-\label{sec:cap}
-The paper's original model reports a plain negative result: for \emph{availability},
-the capability weight is second-order---replacing the binary destructive gate with a
-per-capability magnitude and then flattening it changes rank correlation by only
-$0.006$, because the criticality-plus-downstream term dominates. We confirm this and
-locate where capability \emph{does} matter. For \emph{confidentiality}, flattening
-read potency (so $\mathrm{SECRET\_READ}$ and metadata reads count alike, a $10\times$
-span) drops correlation by $0.070$: the capability ladder is first-order on the
-confidentiality channel. Capability severity thus matters exactly where intuition
+The capability effects reported here are weight ablations against constructed and
+engine-oracle ground truth (Tiers~A--B), \emph{not} the live-cluster measurements of
+Sections~\ref{sec:real-avail}--\ref{sec:real-conf}. The original model reports a plain
+negative result for \emph{availability}: the capability weight is second-order---
+replacing the binary destructive gate with a per-capability magnitude and then
+flattening it changes model-consistency rank correlation by only $0.006$, because the
+criticality-plus-downstream term dominates. We confirm this and locate where capability
+\emph{does} matter. On the synthetic confidentiality estates (Tier~A), flattening read
+potency (so metadata reads and secret reads count alike, an order-of-magnitude span in
+the separate read-potency function $\rho(c)$ of Eq.~\eqref{eq:conf}, not the $w(c)$ of
+Table~\ref{tab:caps}) drops correlation by $0.070$: the capability ladder is first-order
+on the confidentiality channel. Capability severity thus matters exactly where intuition
 places it---secret reading---rather than universally, which sharpens rather than
 overturns the original finding.
 
@@ -550,7 +556,8 @@ real topologies, and \emph{observed} behavior on a live Kubernetes cluster---tha
 consequence-aware ranking is markedly more faithful to true risk. On real fault
 injection the prediction tracks observed outages at $\rho=0.987$; on real credential
 compromise it reproduces the exfiltrated secret set and catches over-privilege that a
-dependency-only view misses, while a read-only agent identity is provably safe. As
+dependency-only view misses, while a read-only agent identity exfiltrates zero
+secrets under real compromise. As
 identity sprawl outpaces human review, prioritizing identity risk by propagated
 consequence rather than by access is both necessary and, on top of dependency
 analysis that infrastructure already performs, practical.
@@ -560,7 +567,8 @@ analysis that infrastructure already performs, practical.
 identity snowball attacks using machine learning, combinatorial optimization and
 attack graphs,'' in \emph{Proc. ACM SOSP}, 2009, pp.~305--320.
 \bibitem{bloodhound} A.~Robbins, R.~Vazarkar, and W.~Schroeder, ``BloodHound: six
-degrees of domain admin,'' open-source tool, 2026.
+degrees of domain admin,'' presented at DEF CON 24, 2016. [Online]. Available:
+\url{https://github.com/BloodHoundAD/BloodHound}
 \bibitem{gecco} D.~Goel \emph{et al.}, ``Defending Active Directory by combining
 neural network based dynamic program and evolutionary diversity optimisation,'' in
 \emph{Proc. GECCO}, 2022, pp.~1191--1199.
@@ -573,7 +581,8 @@ in \emph{Proc. ACM Web Conf. (WWW)}, 2024.
 \bibitem{awsiam} Amazon Web Services, ``IAM Access Analyzer policy generation and
 least-privilege guidance,'' AWS IAM User Guide, accessed 2026.
 \bibitem{kubiscan} CyberArk, ``KubiScan: a tool for scanning Kubernetes clusters for
-risky permissions,'' open-source tool, accessed 2026.
+risky permissions,'' open-source tool, accessed 2026. [Online]. Available:
+\url{https://github.com/cyberark/KubiScan}
 \bibitem{rbac} R.~S.~Sandhu, E.~J.~Coyne, H.~L.~Feinstein, and C.~E.~Youman,
 ``Role-based access control models,'' \emph{IEEE Computer}, vol.~29, no.~2,
 pp.~38--47, 1996.
@@ -596,7 +605,8 @@ ASE}, 2021, pp.~653--665.
 systems: a comprehensive survey and analysis,'' \emph{ACM TOSEM}, vol.~35, no.~1,
 pp.~1--55, 2025.
 \bibitem{ob} Google Cloud Platform, ``Online Boutique: a cloud-native microservices
-demo application,'' accessed 2026.
+demo application,'' accessed 2026. [Online]. Available:
+\url{https://github.com/GoogleCloudPlatform/microservices-demo}
 \end{thebibliography}
 
 \end{document}
