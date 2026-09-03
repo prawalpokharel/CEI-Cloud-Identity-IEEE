@@ -53,13 +53,15 @@ methodological gap with \emph{real} experiments on a live Kubernetes cluster: un
 scale-to-zero fault injection on Google's Online Boutique, the consequence-aware
 prediction tracks \emph{observed} per-service outages at $\rho=0.987$ (versus
 $0.778$ for a naive static graph) and predicted identity blast radius tracks that
-observed consequence at $\rho=0.958$; and under a \emph{real credential-compromise}
-experiments with live RBAC, predicted confidentiality and integrity blast radius
-reproduce the actually exfiltrated secrets and corrupted data, catching over-privilege
-that dependency-only views ($\rho=0.69$, $0.26$) miss---while a read-only agent identity
-neither reads nor tampers, and the availability result reproduces off-distribution. Because ground truth in these experiments is observed system
-behavior rather than the engine's own computation, they remove the circularity
-concern for the availability and confidentiality channels. The effect is
+observed consequence at $\rho=0.958$; and under \emph{real compromise} experiments with
+live RBAC, predicted confidentiality and integrity blast radii reproduce the verified
+exfiltration and tampering reach, catching over-privilege that dependency-only views
+($\rho=0.69$, $0.26$) miss, while a read-only agent identity neither reads nor tampers.
+The availability findings also reproduce on an application outside the model's
+development distribution. Because ground truth in these experiments is observed system
+behavior rather than the engine's own computation, they remove the computed-oracle
+circularity for availability and ground the confidentiality and integrity channels in
+real compromise. The effect is
 actionable---consequence-guided revocation removes $1.5$--$1.7\times$ more risk per
 action than privilege-count guidance---and scales to $10^5$ identities in seconds.
 \end{abstract}
@@ -114,8 +116,8 @@ that matter most. We then add a third tier that answers the sharpest objection t
 oracle-based evaluation---that the oracle and the estimator might share
 structure---by validating predicted blast radius against \emph{observed} system
 behavior: real scale-to-zero fault injection on a live microservice cluster
-(availability), and a real credential-compromise experiment with live Kubernetes
-RBAC (confidentiality). In both, ground truth is measured, not computed, and the
+(availability) and real read/write compromise with live Kubernetes RBAC
+(confidentiality and integrity). Ground truth is measured, not computed, and the
 consequence-aware prediction tracks it.
 
 \section{Related Work}
@@ -451,18 +453,20 @@ identity restricted to \texttt{get/list/watch} on pods and services---the postur
 a production topology agent---exfiltrates \emph{zero} secrets under real compromise,
 a checkable safety property.
 
-\emph{Integrity} is the dual, and we measure it the same way. We create a ConfigMap
-data-of-record per service, grant real \texttt{update} RBAC on the data each service
-legitimately writes---plus three over-privilege \emph{write} misconfigurations (the ad
-service able to rewrite the product catalog, email the exchange rates, recommendation
-the cart)---and compromise each identity by \emph{actually corrupting}
-(\texttt{patch -{}-as}) every ConfigMap its RBAC permits, reading the store back to
-confirm the tamper. Corruption propagates \emph{up} to every dependent that consumes
-the bad data. The dependency-only prediction, which assumes each identity writes only
-its own data, collapses to $\rho=0.259$ because it is blind to the write
-misconfigurations that hand a low-value identity a high-fan-out store; the RBAC-aware
-integrity score reproduces the measured corruption reach ($\rho=1.00$), and the
-read-only agent identity corrupts \emph{zero} stores. In both channels the
+\emph{Integrity} is the dual. We create a ConfigMap data-of-record per service, grant
+real \texttt{update} RBAC on the data each service legitimately writes---plus three
+over-privilege \emph{write} misconfigurations (ad able to rewrite the product catalog,
+email the exchange rates, recommendation the cart)---and compromise each identity by
+\emph{actually corrupting} (\texttt{patch -{}-as}) every ConfigMap its RBAC permits,
+reading each store back to confirm the tamper. What we observe is the verified
+unauthorized \emph{tampering reach}---exactly which data-of-record each identity can
+corrupt; the downstream endangered set is attributed through the dependency graph, not by
+instrumenting each dependent consuming the bad data, so this is tampering reach with
+graph-attributed downstream rather than a fully observed integrity outcome (unlike the
+availability channel; Section~\ref{sec:disc}). Against that reach the dependency-only
+prediction, blind to the write misconfigurations that hand a low-value identity a
+high-fan-out store, collapses to $\rho=0.259$; the RBAC-aware score recovers it
+($\rho=1.00$), and the read-only agent corrupts \emph{zero} stores. In both channels the
 dependency-only view misses exactly the planted misconfigurations, and extracting the
 real authorization graph is what recovers them (Fig.~\ref{fig:conf}).
 
@@ -470,10 +474,10 @@ real authorization graph is what recovers them (Fig.~\ref{fig:conf}).
 \centering
 \includegraphics[width=\textwidth]{figures/fig_ci_integrity.png}
 \caption{Real credential-compromise (left, confidentiality: measured secret
-exfiltration) and data-tampering (right, integrity: measured corruption reach) on the
-live cluster, each versus a dependency-only prediction. The dependency-only view
-misses the planted over-privilege misconfigurations (red labels); the RBAC-aware score
-reproduces the measured reach in both channels.}
+exfiltration via live reads) and data-tampering (right, integrity: verified tampering
+reach via live writes) on the cluster, each versus a dependency-only prediction. The
+dependency-only view misses the planted over-privilege misconfigurations (red labels);
+the RBAC-aware score recovers the reach in both channels.}
 \label{fig:conf}
 \end{figure*}
 
@@ -550,23 +554,23 @@ better. The live-cluster experiments are the strongest evidence: they validate p
 availability blast radius against measured outages, and confidentiality and integrity
 against measured exfiltration and data-tampering; because ground truth there is observed
 rather than computed, they remove the computed-oracle circularity---decisively for
-availability, whose oracle is fully independent, and for confidentiality and integrity up
-to the shared-RBAC caveat below.
+availability, whose outcome is behaviorally measured rather than computed, and for
+confidentiality and integrity up to the shared-RBAC caveat below.
 
-\textbf{Scope of the independence claim.} We are precise about what the live
-experiments establish. The fault-injection oracle and the estimator both derive
-connectivity from the same deployment manifests, so their independence is
-\emph{behavioral}---whether a declared edge actually propagates failure, given
-graceful degradation and caching, which the graph does not encode---rather than
-\emph{structural}. The graceful-degradation and caching divergences we report are
-evidence of that non-identity. To probe generalization beyond the app the heuristic was
-tuned on, we repeat the fault injection on Bookinfo (Section~\ref{sec:offdist}), where
-the same graceful-degradation pattern and confidence-aware advantage hold; still, both
-live studies are small and single-cluster, and broader multi-application, multi-cluster
-validation remains future work. Separately, the confidentiality and integrity
+\textbf{Scope of the independence claim.} The fault-injection oracle and the estimator
+both derive connectivity from the same deployment manifests, so their independence is
+\emph{behavioral}---whether a declared edge actually propagates failure, given graceful
+degradation and caching the graph does not encode---not \emph{structural}; the
+divergences we report are evidence of that non-identity. To probe generalization we
+repeat the injection on Bookinfo (Section~\ref{sec:offdist}), where the same pattern and
+advantage hold, though both live studies are small and single-cluster and broader
+multi-cluster validation remains future work. The confidentiality and integrity
 $\rho=1.00$ reflect that the estimator consumes the same real RBAC the compromise
-traverses; their content is the contrast with the dependency-only $0.69$ and $0.26$,
-not the absolute value.
+traverses, so their content is the contrast with the dependency-only $0.69$ and $0.26$,
+not the absolute value; the integrity study further verifies which stores each identity
+can tamper but attributes downstream corruption through the graph rather than
+instrumenting each dependent, so a fully observed integrity oracle remains the natural
+next step.
 
 \textbf{Open items.} Usage evidence---whether a high-consequence permission is ever
 exercised---is complementary and currently absent: a dormant grant and an actively
@@ -589,27 +593,24 @@ already maintain.
 Identity has become the primary attack surface of cloud infrastructure, and the
 standard defense ranks identities by what they can reach. We showed that reachability
 systematically misranks identity risk because it ignores dependency structure,
-formalized identity blast radius as the join of the authorization graph and the
-dependency graph across availability, confidentiality, and integrity channels, and
-demonstrated---against exact synthetic ground truth, a production engine over five
-real topologies, and \emph{observed} behavior on a live Kubernetes cluster---that
-consequence-aware ranking is markedly more faithful to true risk. On real fault
-injection the prediction tracks observed outages at $\rho=0.987$ (and reproduces on an
-off-distribution application); on real credential-compromise and data-tampering it
-reproduces the exfiltrated and corrupted sets and catches over-privilege that
-dependency-only views miss, while a read-only agent identity neither reads nor tampers
-with any store. As
-identity sprawl outpaces human review, prioritizing identity risk by propagated
-consequence rather than by access is both necessary and, on top of dependency
-analysis that infrastructure already performs, practical.
+formalized identity blast radius as the join of the authorization and dependency graphs
+across availability, confidentiality, and integrity channels, and demonstrated---against
+exact synthetic ground truth, a production engine over five real topologies, and
+\emph{observed} live-cluster behavior---that consequence-aware ranking is markedly more
+faithful to true risk. On real fault injection the prediction tracks observed outages at
+$\rho=0.987$ (reproducing off-distribution); on real read and write compromise it recovers
+the exfiltrated secrets and verified tampering reach, catching over-privilege that
+dependency-only views miss, while a read-only agent identity neither reads nor tampers.
+As identity sprawl outpaces human review, prioritizing by propagated consequence rather
+than access is both necessary and, atop dependency analysis infrastructure already
+performs, practical.
 
 \begin{thebibliography}{00}
 \bibitem{heatray} J.~Dunagan, A.~X.~Zheng, and D.~R.~Simon, ``Heat-ray: combating
 identity snowball attacks using machine learning, combinatorial optimization and
 attack graphs,'' in \emph{Proc. ACM SOSP}, 2009, pp.~305--320.
 \bibitem{bloodhound} A.~Robbins, R.~Vazarkar, and W.~Schroeder, ``BloodHound: six
-degrees of domain admin,'' presented at DEF CON 24, 2016. [Online]. Available:
-\url{https://github.com/BloodHoundAD/BloodHound}
+degrees of domain admin,'' presented at DEF CON 24, 2016.
 \bibitem{gecco} D.~Goel \emph{et al.}, ``Defending Active Directory by combining
 neural network based dynamic program and evolutionary diversity optimisation,'' in
 \emph{Proc. GECCO}, 2022, pp.~1191--1199.
@@ -622,8 +623,7 @@ in \emph{Proc. ACM Web Conf. (WWW)}, 2024.
 \bibitem{awsiam} Amazon Web Services, ``IAM Access Analyzer policy generation and
 least-privilege guidance,'' AWS IAM User Guide, accessed 2026.
 \bibitem{kubiscan} CyberArk, ``KubiScan: a tool for scanning Kubernetes clusters for
-risky permissions,'' open-source tool, accessed 2026. [Online]. Available:
-\url{https://github.com/cyberark/KubiScan}
+risky permissions,'' open-source tool, accessed 2026.
 \bibitem{rbac} R.~S.~Sandhu, E.~J.~Coyne, H.~L.~Feinstein, and C.~E.~Youman,
 ``Role-based access control models,'' \emph{IEEE Computer}, vol.~29, no.~2,
 pp.~38--47, 1996.
@@ -646,8 +646,7 @@ ASE}, 2021, pp.~653--665.
 systems: a comprehensive survey and analysis,'' \emph{ACM TOSEM}, vol.~35, no.~1,
 pp.~1--55, 2025.
 \bibitem{ob} Google Cloud Platform, ``Online Boutique: a cloud-native microservices
-demo application,'' accessed 2026. [Online]. Available:
-\url{https://github.com/GoogleCloudPlatform/microservices-demo}
+demo application,'' accessed 2026.
 \end{thebibliography}
 
 \end{document}

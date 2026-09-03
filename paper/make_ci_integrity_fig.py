@@ -41,7 +41,7 @@ def panel(ax, rows, title, rho_dep):
 fig, (a1, a2) = plt.subplots(1, 2, figsize=(13.5, 4.4))
 panel(a1, conf, "Confidentiality: measured secret exfiltration", "0.691")
 a1.set_ylabel("blast radius ($\\Sigma$ sensitivity)")
-panel(a2, integ, "Integrity: measured corruption reach", "0.259")
+panel(a2, integ, "Integrity: verified tampering reach", "0.259")
 a2.set_ylabel("blast radius (criticality-weighted)")
 plt.tight_layout()
 plt.savefig("figures/fig_ci_integrity.png", dpi=140)
