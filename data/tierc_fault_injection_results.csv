@@ -1,0 +1,11 @@
+service,base_green,confirmed_down,home,browse,addcart,viewcart,checkout
+adservice,green,yes,200,200,302,200,200
+cartservice,green,yes,500,500,500,500,000
+checkoutservice,green,yes,200,200,302,200,500
+currencyservice,green,yes,200,200,302,500,500
+emailservice,green,yes,200,200,302,200,200
+paymentservice,green,yes,200,200,302,200,500
+productcatalogservice,green,yes,500,500,500,200,200
+recommendationservice,green,yes,200,200,302,200,200
+redis-cart,green,yes,500,500,500,500,500
+shippingservice,green,yes,200,200,302,500,500

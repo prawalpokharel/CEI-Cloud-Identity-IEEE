@@ -1,0 +1,38 @@
+setting up namespace ci-exp on kind-co-spike ...
+
+identity                   MEASURED exfiltrated (real reads)
+sa-frontend               ['adservice', 'cartservice', 'checkoutservice', 'currencyservice', 'emailservice', 'frontend', 'paymentservice', 'productcatalogservice', 'recommendationservice', 'redis-cart', 'shippingservice']
+sa-checkoutservice        ['cartservice', 'checkoutservice', 'currencyservice', 'emailservice', 'paymentservice', 'productcatalogservice', 'redis-cart', 'shippingservice']
+sa-cartservice            ['cartservice', 'redis-cart']
+sa-recommendationservice  ['cartservice', 'productcatalogservice', 'recommendationservice', 'redis-cart']
+sa-adservice              ['adservice', 'paymentservice']
+sa-currencyservice        ['currencyservice']
+sa-emailservice           ['emailservice', 'redis-cart']
+sa-paymentservice         ['paymentservice']
+sa-productcatalogservice  ['productcatalogservice']
+sa-redis-cart             ['redis-cart']
+sa-shippingservice        ['shippingservice']
+
+sa-agent-ro exfiltrated: []  (expect EMPTY -> read-only agent safe)
+sa-ops      exfiltrated: 11/11 services
+
+identity                 #exf measΣsens  IBR-rbac  dep-only  permcnt
+sa-frontend               11      6.23      6.23      6.23        7
+sa-checkoutservice         8      5.43      5.43      5.43        6
+sa-cartservice             2      1.65      1.65      1.65        1
+sa-recommendationservice    4      2.55      2.55       0.9        2  <-misconfig
+sa-adservice               2      1.18      1.18       0.2        1  <-misconfig
+sa-currencyservice         1       0.4       0.4       0.4        0
+sa-emailservice            2       1.5       1.5      0.55        1  <-misconfig
+sa-paymentservice          1      0.98      0.98      0.98        0
+sa-productcatalogservice    1       0.6       0.6       0.6        0
+sa-redis-cart              1      0.95      0.95      0.95        0
+sa-shippingservice         1       0.5       0.5       0.5        0
+
+=== confidentiality blast radius vs REAL measured exfiltration ===
+  Spearman(IBR-confidentiality w/ real RBAC, measured):  1.000
+  Spearman(dependency-graph-only pred,       measured):  0.691
+  Spearman(permission-count baseline,        measured):  0.944
+  agent-ro measured exfiltration: 0 secrets (read-only safety validated)
+
+[exited with code 0]
