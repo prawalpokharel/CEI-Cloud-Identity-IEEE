@@ -11,6 +11,13 @@
 
 \begin{document}
 
+% --- Camera-ready copyright notice ---
+% IEMCON provides the exact string (with the proceedings ISBN) via IEEE eCopyright/EDAS,
+% and many IEEE conferences stamp it automatically -- check the IEMCON 2026 camera-ready
+% instructions. If you must embed it, uncomment and fill in the ISBN below (place BEFORE
+% \maketitle):
+% \IEEEpubid{\makebox[\textwidth]{979-8-XXXX-XXXX-X/26/\$31.00~\copyright{}2026 IEEE\hfill}}
+
 \title{Reachability Is Not Consequence:\\
 Consequence-Aware Prioritization of Identity Risk\\
 in Cloud-Native Infrastructure\\
@@ -19,6 +26,7 @@ in Cloud-Native Infrastructure\\
 
 \author{\IEEEauthorblockN{Prawal Pokharel}
 \IEEEauthorblockA{\textit{Iverson Cloud} \\
+Euless, TX, USA \\
 prawal.pokharel7@gmail.com}}
 
 \maketitle
@@ -52,10 +60,8 @@ that dependency-only views ($\rho=0.69$, $0.26$) miss---while a read-only agent 
 neither reads nor tampers, and the availability result reproduces off-distribution. Because ground truth in these experiments is observed system
 behavior rather than the engine's own computation, they remove the circularity
 concern for the availability and confidentiality channels. The effect is
-actionable: consequence-guided revocation removes $1.5$--$1.7\times$ more true risk
-per action than privilege-count guidance, the top fifth of workloads by blast
-radius account for $42$--$64\%$ of all identity risk, and the method scales to
-$10^5$ identities in seconds.
+actionable---consequence-guided revocation removes $1.5$--$1.7\times$ more risk per
+action than privilege-count guidance---and scales to $10^5$ identities in seconds.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -536,18 +542,16 @@ blast radius. Risk concentrates far above the uniform baseline (dashed).}
 
 \section{Discussion and Limitations}
 \label{sec:disc}
-\textbf{What the evidence shows.} Across three tiers---exact synthetic consequence,
-a production engine over five real topologies, and \emph{observed} behavior on a
-live cluster---ranking identities by propagated infrastructure consequence is
-substantially more faithful to true risk than ranking by access, the two rankings
-disagree on the identities that matter most, and consequence guidance changes
-remediation for the better. The live-cluster experiments are the strongest evidence:
-they validate predicted availability blast radius against measured outages, and
-predicted confidentiality and integrity blast radius against measured exfiltration and
-data-tampering; because ground truth there is observed rather than computed, they
-remove the computed-oracle circularity---decisively for availability, whose oracle is
-fully independent, and for confidentiality and integrity up to the shared-RBAC caveat
-below.
+\textbf{What the evidence shows.} Across three tiers---exact synthetic consequence, a
+production engine over five real topologies, and \emph{observed} live-cluster
+behavior---consequence-aware ranking is markedly more faithful to true risk than access,
+disagrees with it on the identities that matter most, and changes remediation for the
+better. The live-cluster experiments are the strongest evidence: they validate predicted
+availability blast radius against measured outages, and confidentiality and integrity
+against measured exfiltration and data-tampering; because ground truth there is observed
+rather than computed, they remove the computed-oracle circularity---decisively for
+availability, whose oracle is fully independent, and for confidentiality and integrity up
+to the shared-RBAC caveat below.
 
 \textbf{Scope of the independence claim.} We are precise about what the live
 experiments establish. The fault-injection oracle and the estimator both derive
@@ -574,13 +578,12 @@ flags, and the caching effects in Section~\ref{sec:real-avail} show static fidel
 can decay. Integrating observed-usage and temporal-graph signals with the
 consequence signal is the clear extension.
 
-\textbf{Industrial relevance.} The result reframes a standard control. Least-privilege
-programs prioritize by access; this work shows that access and consequence diverge on
-real infrastructure, and that the information needed to close the gap---a dependency
-graph with per-workload blast radius, plus extracted authorization---is exactly what
-modern infrastructure-analysis systems already compute. Ranking identities by
-consequence is therefore a capability deployable on top of dependency analysis that
-clusters increasingly maintain.
+\textbf{Industrial relevance.} Least-privilege programs prioritize by access; this work
+shows access and consequence diverge on real infrastructure, and that the information
+needed to close the gap---a dependency graph with per-workload blast radius, plus
+extracted authorization---is exactly what modern infrastructure-analysis systems already
+compute, making consequence ranking deployable on top of dependency analysis clusters
+already maintain.
 
 \section{Conclusion}
 Identity has become the primary attack surface of cloud infrastructure, and the
