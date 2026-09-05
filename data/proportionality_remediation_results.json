@@ -1,0 +1,150 @@
+{
+ "T_base": 21.97,
+ "excess_reach_from_misconfigs": 3.58,
+ "results": [
+  {
+   "grant": "frontend->adservice",
+   "misconfig": false,
+   "advantage_dReach": 0.2,
+   "collateral_flows_ub": 0,
+   "remeasured_identities": 1,
+   "pareto_dominant": false
+  },
+  {
+   "grant": "frontend->cartservice",
+   "misconfig": false,
+   "advantage_dReach": 0.0,
+   "collateral_flows_ub": 5,
+   "remeasured_identities": 1,
+   "pareto_dominant": false
+  },
+  {
+   "grant": "frontend->checkoutservice",
+   "misconfig": false,
+   "advantage_dReach": 1.3,
+   "collateral_flows_ub": 1,
+   "remeasured_identities": 1,
+   "pareto_dominant": false
+  },
+  {
+   "grant": "frontend->currencyservice",
+   "misconfig": false,
+   "advantage_dReach": 0.0,
+   "collateral_flows_ub": 2,
+   "remeasured_identities": 1,
+   "pareto_dominant": false
+  },
+  {
+   "grant": "frontend->productcatalogservice",
+   "misconfig": false,
+   "advantage_dReach": 0.0,
+   "collateral_flows_ub": 3,
+   "remeasured_identities": 1,
+   "pareto_dominant": false
+  },
+  {
+   "grant": "frontend->recommendationservice",
+   "misconfig": false,
+   "advantage_dReach": 0.3,
+   "collateral_flows_ub": 0,
+   "remeasured_identities": 1,
+   "pareto_dominant": false
+  },
+  {
+   "grant": "frontend->shippingservice",
+   "misconfig": false,
+   "advantage_dReach": 0.0,
+   "collateral_flows_ub": 2,
+   "remeasured_identities": 1,
+   "pareto_dominant": false
+  },
+  {
+   "grant": "checkoutservice->cartservice",
+   "misconfig": false,
+   "advantage_dReach": 0.7,
+   "collateral_flows_ub": 5,
+   "remeasured_identities": 2,
+   "pareto_dominant": false
+  },
+  {
+   "grant": "checkoutservice->currencyservice",
+   "misconfig": false,
+   "advantage_dReach": 0.4,
+   "collateral_flows_ub": 2,
+   "remeasured_identities": 2,
+   "pareto_dominant": false
+  },
+  {
+   "grant": "checkoutservice->emailservice",
+   "misconfig": false,
+   "advantage_dReach": 1.1,
+   "collateral_flows_ub": 0,
+   "remeasured_identities": 2,
+   "pareto_dominant": false
+  },
+  {
+   "grant": "checkoutservice->paymentservice",
+   "misconfig": false,
+   "advantage_dReach": 0.98,
+   "collateral_flows_ub": 1,
+   "remeasured_identities": 2,
+   "pareto_dominant": false
+  },
+  {
+   "grant": "checkoutservice->productcatalogservice",
+   "misconfig": false,
+   "advantage_dReach": 0.6,
+   "collateral_flows_ub": 3,
+   "remeasured_identities": 2,
+   "pareto_dominant": false
+  },
+  {
+   "grant": "checkoutservice->shippingservice",
+   "misconfig": false,
+   "advantage_dReach": 0.5,
+   "collateral_flows_ub": 2,
+   "remeasured_identities": 2,
+   "pareto_dominant": false
+  },
+  {
+   "grant": "cartservice->redis-cart",
+   "misconfig": false,
+   "advantage_dReach": 1.9,
+   "collateral_flows_ub": 5,
+   "remeasured_identities": 4,
+   "pareto_dominant": true
+  },
+  {
+   "grant": "recommendationservice->cartservice",
+   "misconfig": true,
+   "advantage_dReach": 1.65,
+   "collateral_flows_ub": 0,
+   "remeasured_identities": 2,
+   "pareto_dominant": true
+  },
+  {
+   "grant": "recommendationservice->productcatalogservice",
+   "misconfig": false,
+   "advantage_dReach": 0.6,
+   "collateral_flows_ub": 3,
+   "remeasured_identities": 2,
+   "pareto_dominant": false
+  },
+  {
+   "grant": "adservice->paymentservice",
+   "misconfig": true,
+   "advantage_dReach": 0.98,
+   "collateral_flows_ub": 0,
+   "remeasured_identities": 2,
+   "pareto_dominant": false
+  },
+  {
+   "grant": "emailservice->redis-cart",
+   "misconfig": true,
+   "advantage_dReach": 0.95,
+   "collateral_flows_ub": 0,
+   "remeasured_identities": 3,
+   "pareto_dominant": false
+  }
+ ]
+}

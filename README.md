@@ -69,6 +69,15 @@ requirements.txt
   dependency heuristic was never tuned on): the productpage renders (HTTP 200) when details or
   reviews are removed and only goes down when the productpage itself is removed — the
   confidence-aware prediction matches all cases, the naive static graph over-predicts.
+- **`proportionality_experiment.py`** — proportionality-gated remediation (bridging
+  effects-based proportionality assessment, Maathuis et al., with blast-radius de-scoping):
+  re-measures live exfiltration reach under all 18 single-grant revocations (real role
+  edits + live authorization checks), with measured user-flow breakage as collateral.
+  Findings: 4 of the top grant-holder's 7 revocations measure ZERO advantage (attack paths
+  re-route, incl. through planted misconfigs = backdoors that nullify legitimate
+  revocations); the highest-advantage revocation severs the most load-bearing edge; the
+  misconfigs occupy the high-advantage/zero-collateral frontier. Output ->
+  `data/proportionality_remediation_results.json`.
 - **`run_tierc_mesh.py`** — a controlled process-mesh replica of the Online Boutique
   topology (pure Python, no cluster), a lighter-weight cross-check of the fault
   injection result.

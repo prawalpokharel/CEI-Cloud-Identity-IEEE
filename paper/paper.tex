@@ -152,16 +152,24 @@ consequence oracle for identities, by composing per-workload blast radius throug
 the authorization graph.
 
 \textbf{Least privilege and RBAC mining.} Role-based access control~\cite{rbac,nist}
-is the dominant authorization model in the settings we study, and a long line of
-role-mining and policy-rightsizing methods infers minimal roles from existing
-assignments and observed usage~\cite{rmp,roleminer,rminesurvey,semrole}, typically
-treating a permission as removable if it is unused over an observation
-window~\cite{awsiam}. Most of this work weights permissions uniformly or by usage
-frequency; the observation that permissions differ in intrinsic severity has been
+dominates the settings we study; role-mining and rightsizing methods infer minimal
+roles from assignments and observed usage~\cite{rmp,roleminer,rminesurvey,semrole},
+typically treating unused permissions as removable~\cite{awsiam} and weighting them
+uniformly or by usage frequency. Intrinsic permission severity has been
 raised~\cite{severity} but not connected to downstream infrastructure consequence.
-This usage view is orthogonal and complementary to ours: it asks whether a
-permission is needed, while we ask what a permission endangers. We return to the
-interaction between usage evidence and consequence in the discussion.
+The usage view is orthogonal and complementary: it asks whether a permission is
+needed; we ask what it endangers (Section~\ref{sec:disc}).
+
+\textbf{Consequence assessment in cyber operations.} A parallel literature in
+military cyber operations has long argued that the effect of an action must be assessed
+separately from the access used to reach it: effects-based models estimate and classify
+the downstream consequences of an operation---across temporal, spatial, and force
+dimensions---for collateral-damage and proportionality
+assessment~\cite{maathuis18,maathuis21}. That work assesses a chosen operation against a
+target; we invert the setting, ranking the \emph{defender's own identities} by the
+consequence their access carries. The shared premise---that access is a poor proxy for
+effect---motivates the question we ask of IAM, and Section~\ref{sec:scale} returns to it
+as a proportionality lens on remediation.
 
 To our knowledge, no prior system ranks identities by the propagated infrastructure
 consequence of the access they hold, nor demonstrates that access-based ranking and
@@ -349,20 +357,13 @@ join reaches $0.71$.}
 The strongest predictor of reachability under-ranking is the maximum downstream
 fan-out of the resources an identity can reach: identities whose few permissions
 land upstream of large dependency cascades are exactly the ones reachability misses.
-Fig.~\ref{fig:depth} makes the mechanism visible: as fan-out depth grows, the
+Varying fan-out depth directly makes the mechanism visible: as depth grows, the
 reachability baseline's recall of the top-10 riskiest identities degrades from
 $0.40$ to $0.16$, while the dependency-aware method stays substantially higher. The
 practical face of this mechanism is the low-privilege, high-consequence
 identity---few permissions, no privileged role, yet atop a large blast
 radius---invisible to privilege-focused review.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{figures/fig_e3_recall_vs_depth.png}
-\caption{Recall@10 of the riskiest identities versus dependency fan-out depth.
-Reachability degrades as there is more downstream structure to ignore.}
-\label{fig:depth}
-\end{figure}
 
 \subsection{The result generalizes across real topologies}
 Fig.~\ref{fig:cross} repeats the real-engine comparison across all five shipped
@@ -471,7 +472,7 @@ real authorization graph is what recovers them (Fig.~\ref{fig:conf}).
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=\textwidth]{figures/fig_ci_integrity.png}
+\includegraphics[width=0.93\textwidth]{figures/fig_ci_integrity.png}
 \caption{Real credential-compromise (left, confidentiality: measured secret
 exfiltration via live reads) and data-tampering (right, integrity: verified tampering
 reach via live writes) on the cluster, each versus a dependency-only prediction. The
@@ -518,30 +519,38 @@ A better ranking is only useful if it changes action. Given a budget of one
 permission revocation per identity, consequence-guided revocation removes
 $1.5$--$1.7\times$ more true engine-measured risk than privilege-count-guided
 revocation and up to $2.25\times$ more than random, on every one of the five
-topologies (Fig.~\ref{fig:remed}). The ranking also yields a compact defensive
+topologies (Fig.~\ref{fig:remed}).
+
+Remediation is also where the proportionality lens of effects-based
+assessment~\cite{maathuis18,maathuis21} bites: a de-scoping action buys risk reduction
+at the price of severed legitimate function. On the live cluster's RBAC overlay we
+re-measured exfiltration reach under all 18 single-grant revocations (real role edits,
+re-verified by live authorization checks and reads), with collateral taken as the
+observed flow breakage of the severed edge (Section~\ref{sec:real-avail}; an upper
+bound, blind to non-flow function). Three measured facts: advantage is not per-grant
+separable---four of the largest grant-holder's seven revocations measure \emph{zero}
+advantage, the compromise re-routing through redundant paths, including \emph{through
+the planted misconfigurations}, which silently nullify legitimate revocations; the
+highest-advantage revocation (1.9 sensitivity units) severs the most load-bearing edge,
+breaking all five flows---a textbook disproportionate action; and the misconfigurations
+occupy exactly the high-advantage, zero-collateral frontier (1.65/0.98/0.95 at zero
+flows), while the seven revocations against the largest grant-holder \emph{jointly}
+yield less (1.8)---privilege-count de-scoping is not merely inefficient but, in the
+proportionality sense, inadmissible. The ranking also yields a compact defensive
 target: the top fifth of workloads by blast radius account for $42$--$64\%$ of all
-identity risk (Fig.~\ref{fig:conc}), far above the uniform $20\%$. Finally, the full
-scoring battery scores $10^5$ identities in a little over a second (empirical growth
-exponent near $1.4$, $\approx 0.01$~ms per identity), and the availability ranking
-is stable under every order-preserving perturbation of Table~\ref{tab:caps},
-degrading only when the capability \emph{ordering} is shuffled---so it rests on an
-ordinal, defensible judgment, not on specific constants.
+identity risk, far above the uniform $20\%$. Finally, the full battery scores $10^5$ identities in a little over a second
+($\approx 0.01$~ms per identity), and the availability ranking is stable under every
+order-preserving perturbation of Table~\ref{tab:caps}, degrading only when the
+\emph{ordering} is shuffled---an ordinal, defensible judgment, not specific constants.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\columnwidth]{figures/fig_e10_remediation.png}
+\includegraphics[width=0.92\columnwidth]{figures/fig_e10_remediation.png}
 \caption{True risk removed by a single permission revocation, consequence-guided
 versus privilege-count versus random, across five topologies.}
 \label{fig:remed}
 \end{figure}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{figures/fig_e12_concentration.png}
-\caption{Share of total identity risk flowing through the top-20\% of workloads by
-blast radius. Risk concentrates far above the uniform baseline (dashed).}
-\label{fig:conc}
-\end{figure}
 
 \section{Discussion and Limitations}
 \label{sec:disc}
@@ -644,6 +653,12 @@ ASE}, 2021, pp.~653--665.
 \bibitem{failsurvey} S.~Zhang \emph{et al.}, ``Failure diagnosis in microservice
 systems: a comprehensive survey and analysis,'' \emph{ACM TOSEM}, vol.~35, no.~1,
 pp.~1--55, 2025.
+\bibitem{maathuis18} C.~Maathuis, W.~Pieters, and J.~van~den~Berg, ``Assessment
+methodology for collateral damage and military (dis)advantage in cyber operations,'' in
+\emph{Proc. IEEE MILCOM}, 2018, pp.~438--443.
+\bibitem{maathuis21} C.~Maathuis, W.~Pieters, and J.~van~den~Berg, ``Decision support
+model for effects estimation and proportionality assessment for targeting in cyber
+operations,'' \emph{Defence Technology}, vol.~17, no.~2, pp.~352--374, 2021.
 \bibitem{ob} Google Cloud Platform, ``Online Boutique: a cloud-native microservices
 demo application,'' accessed 2026.
 \end{thebibliography}
