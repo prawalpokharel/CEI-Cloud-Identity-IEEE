@@ -47,8 +47,8 @@ it along three channels---availability, confidentiality, and integrity. Against
 ground truth computed by a production dependency-analysis engine over five real
 infrastructure topologies, identity blast radius achieves rank correlation
 $\rho=0.67$--$0.74$ with true consequence, while the strongest reachability
-baseline reaches only $0.29$--$0.44$. We then close the paper's central
-methodological gap with \emph{real} experiments on a live Kubernetes cluster: under
+baseline reaches only $0.29$--$0.44$. We then close the central methodological
+gap of oracle-based evaluation with \emph{real} experiments on a live Kubernetes cluster: under
 scale-to-zero fault injection on Google's Online Boutique, the consequence-aware
 prediction tracks \emph{observed} per-service outages at $\rho=0.987$ (versus
 $0.778$ for a naive static graph) and predicted identity blast radius tracks that
@@ -138,7 +138,10 @@ IAM policies as queryable reachability graphs to find which principals can reach
 which resources~\cite{grasp}. All of these answer a reachability question---which
 resources, how privileged, how many hops---and rank findings by properties of the
 access itself. None incorporates the downstream infrastructure consequence of
-abusing that access, which is the axis this paper adds.
+abusing that access, which is the axis this paper adds. Attack-graph asset-ranking and commercial
+attack-path products weight targets by static asset value or path presence---the
+ReachCrit degeneracy of Section~III---not by consequence propagated through the
+measured runtime graph and validated against observed behavior.
 
 \textbf{Dependency and blast-radius analysis.} A separate line of work models
 service dependency graphs for reliability: identifying critical services,
@@ -218,12 +221,12 @@ by the semantics of each channel.
 \emph{Confidentiality} flows \emph{down} the dependency graph: reading a resource
 $r$ exposes $r$'s own data and, transitively, the data of everything $r$ draws
 upon, because a compromised service yields the credentials it uses to reach its
-dependencies. With read potency $\rho(c)$ (how much a read-class capability
+dependencies. With read potency $\varrho(c)$ (how much a read-class capability
 exposes; $\mathrm{SECRET\_READ}$ far exceeds metadata reads) and per-store
 sensitivity $\sigma(s)$,
 \begin{equation}
 \mathrm{IBR}_C(i) = \!\!\!\sum_{\substack{(i,r,c)\in A\\ c\ \text{read-like}}}\!\!\!
- \rho(c)\!\!\sum_{s\,\in\,\{r\}\cup\nabla(r)}\!\!\!\sigma(s).
+ \varrho(c)\!\!\sum_{s\,\in\,\{r\}\cup\nabla(r)}\!\!\!\sigma(s).
 \label{eq:conf}
 \end{equation}
 \emph{Integrity} flows \emph{up}, like availability, but is gated by write potency
@@ -242,7 +245,8 @@ degeneracies, plus common variants: \textbf{PermCount} (permissions held),
 \textbf{PrivRoleCount} (privileged capabilities held), \textbf{ReachCount} (distinct
 resources reachable), \textbf{ReachCrit} (reachable resources weighted by static
 criticality---the strongest reachability baseline), \textbf{IBR-noDep}
-(Eq.~\eqref{eq:ibr} with $\lambda=0$), and \textbf{IBR-full}.
+(Eq.~\eqref{eq:ibr} with $\lambda=0$), \textbf{IBR-noCap} (Eq.~\eqref{eq:ibr} with the
+capability weight $w(c)$ flattened to a constant), and \textbf{IBR-full}.
 
 \begin{table}[t]
 \caption{Capability classes and severity weights. Only the \emph{ordering} affects
@@ -295,11 +299,12 @@ Boutique (eleven microservices) on Kubernetes and, for the availability channel,
 inject faults by scaling each service to zero and recording which real user-facing
 flows break over HTTP; for the confidentiality and integrity channels, we stand up
 real Kubernetes Secrets, ConfigMaps, ServiceAccounts, and RBAC and ``compromise'' each
-identity by actually reading the secrets, and corrupting the data-of-record, its
-credentials reach---chaining laterally. Ground truth in Tier~C is measured system
+identity by actually reading the secrets its credentials reach and corrupting the
+data-of-record its RBAC permits, chaining laterally through each credential recovered. Ground truth in Tier~C is measured system
 behavior, not any computation of ours. Before an identity's kill/compromise we confirm
-the target is truly removed and the baseline is healthy, isolating each measurement. To
-test generalization beyond the app the dependency heuristic was developed on, we repeat
+the target is truly removed and the baseline is healthy, isolating each measurement. All Tier-C
+runs use a single-node kind cluster (Kubernetes v1.29.2), no background load;
+breakage is a non-2xx/3xx response, probed after pods are confirmed terminated. To test generalization beyond the app the dependency heuristic was developed on, we repeat
 the availability fault injection on Istio's Bookinfo (Section~\ref{sec:offdist}).
 
 \textbf{Protocol and metrics.} Every experiment scores each identity with the full
@@ -307,7 +312,9 @@ battery and compares each method's induced ranking to the ground-truth ranking. 
 report Spearman $\rho$ over the full ranking and set overlap for the top-$k$
 identities, since the operational task is top-heavy. All experiments regenerate from
 fixed seeds; generator, synthesizer, scoring battery, and figure scripts are
-released.\footnote{Reproducibility repository: \url{https://github.com/prawalpokharel/CEI-Cloud-Identity-IEEE}.}
+released,\footnote{Reproducibility repository: \url{https://github.com/prawalpokharel/CEI-Cloud-Identity-IEEE}.}
+with all weights, potency functions, and sensitivity assignments fixed a priori and
+not tuned per topology.
 
 \section{Results}
 \subsection{Access-based ranking is systematically wrong (synthetic)}
@@ -318,9 +325,9 @@ criticality-weighted ReachCrit only $0.67$---while the full method reaches
 $\rho=0.93$. The ablation is visible here: removing the dependency join (IBR-noDep)
 drops correlation to $0.81$, and the gap between ReachCrit and IBR-full is precisely
 the value of joining the dependency graph. The top-$k$ most-critical identities
-under ReachCrit and IBR-full overlap by only about half (Jaccard $\approx0.49$--
-$0.51$ for $k\in\{5,10,25\}$): an analyst working a reachability-ranked queue would
-spend roughly half their effort on the wrong identities.
+under ReachCrit and IBR-full share only about two-thirds of their members (Jaccard
+$\approx0.49$--$0.51$ for $k\in\{5,10,25\}$): roughly a third of an analyst's
+reachability-ranked effort lands on identities outside the true top set.
 
 \begin{figure}[t]
 \centering
@@ -366,20 +373,13 @@ radius---invisible to privilege-focused review.
 
 
 \subsection{The result generalizes across real topologies}
-Fig.~\ref{fig:cross} repeats the real-engine comparison across all five shipped
-topologies. The gap holds everywhere: mean rank correlation rises from $0.38$ for
+Repeating the real-engine comparison across all five shipped topologies (figure in
+the reproducibility repository), the gap holds everywhere: mean rank correlation rises from $0.38$ for
 reachability to $0.72$ for the dependency-aware method, and---consistent with the
 mechanism---the gap is widest on the topologies whose maximum blast radius is
 deepest (the drone-swarm and GPU-cluster estates, with engine-measured blast radii
 up to $11$--$12$ downstream workloads).
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{figures/fig_e9_cross_topology.png}
-\caption{Rank correlation with real-engine ground truth across five real topologies.
-The reachability-to-consequence gap is present in every case (mean $0.38\to0.72$).}
-\label{fig:cross}
-\end{figure}
 
 \subsection{Real fault injection: predicted blast radius vs.\ observed outages}
 \label{sec:real-avail}
@@ -394,13 +394,15 @@ recommendation services---break \emph{no} user-facing flow when removed: the
 frontend degrades gracefully. A naive static graph, which treats every declared
 dependency edge as failure-propagating, over-predicts exactly these three; the
 confidence-aware prediction, which the engine already computes, matches the observed
-broken-flow set on $8$ of $10$ services and reaches Spearman $\rho=0.987$ against
+broken-flow set on $8$ of $10$ services and reaches Spearman $\rho=0.987$ ($n{=}10$) against
 measured blast radius, versus $0.778$ for the naive static graph. Lifting the
 measurement to identities---scoring synthesized identities against the
 \emph{observed} per-service consequence---predicted identity blast radius tracks
-measured consequence at $\rho=0.958$. The two services the confidence-aware model
-still over-predicts (currency, product-catalog) are under-broken because the
-frontend \emph{caches} their data---a stateful runtime effect no static graph
+measured consequence at $\rho=0.958$. At these sample sizes rank correlations carry
+wide uncertainty; the robust findings are the exact match set and the identity of the
+three gracefully degrading services. The two services the confidence-aware model
+still over-predicts (currency, product-catalog) are under-broken, consistent with the
+frontend caching their responses---a stateful runtime effect no static graph
 captures, and a concrete instance of the dynamic-behavior gap we discuss in
 Section~\ref{sec:disc}. Crucially, because ground truth here is observed HTTP
 failure rather than the engine's own computation, estimator and oracle no longer
@@ -448,7 +450,9 @@ of what is exposed. The confidentiality score computed from the \emph{real extra
 RBAC} reproduces the exfiltrated set ($\rho=1.00$)---not as predictive magic, but
 because joining the real authorization graph with the dependency graph recovers the
 reach an attacker actually walks; the informative quantity is the gap from $0.69$,
-which is precisely the value of extracting real RBAC. Finally, a read-only collector
+which is precisely the value of extracting real RBAC. The misconfigurations are planted to represent documented over-privilege classes
+(cf.\ the $47.7\%$ prevalence~\cite{overpriv}), so this is a controlled detection
+experiment: the finding is structural, not the specific correlations. Finally, a read-only collector
 identity restricted to \texttt{get/list/watch} on pods and services---the posture of
 a production topology agent---exfiltrates \emph{zero} secrets under real compromise,
 a checkable safety property.
@@ -472,7 +476,7 @@ real authorization graph is what recovers them (Fig.~\ref{fig:conf}).
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.93\textwidth]{figures/fig_ci_integrity.png}
+\includegraphics[width=0.88\textwidth]{figures/fig_ci_integrity.png}
 \caption{Real credential-compromise (left, confidentiality: measured secret
 exfiltration via live reads) and data-tampering (right, integrity: verified tampering
 reach via live writes) on the cluster, each versus a dependency-only prediction. The
@@ -491,8 +495,9 @@ details service and a reviews service, itself backed by ratings). Under real
 scale-to-zero fault injection the user-facing page renders (HTTP~200) when either
 backend is removed, degrading only the corresponding section, and goes down only when
 the productpage itself is removed. The confidence-aware prediction---that only the
-frontend's own failure breaks the page---matches all three observed cases, while the
-naive static graph over-predicts, flagging the two gracefully-degrading backends as
+frontend's own failure breaks the page---matches all three observed cases (ratings,
+which affects only content within the reviews section, was not separately injected),
+while the naive static graph over-predicts, flagging the two gracefully-degrading backends as
 page-breaking. The graceful-degradation phenomenon, and the confidence-aware model's
 advantage over the static graph, thus reproduce on an application outside the
 heuristic's development distribution.
@@ -507,7 +512,7 @@ flattening it changes model-consistency rank correlation by only $0.006$, becaus
 criticality-plus-downstream term dominates. We confirm this and locate where capability
 \emph{does} matter. On the synthetic confidentiality estates (Tier~A), flattening read
 potency (so metadata reads and secret reads count alike, an order-of-magnitude span in
-the separate read-potency function $\rho(c)$ of Eq.~\eqref{eq:conf}, not the $w(c)$ of
+the separate read-potency function $\varrho(c)$ of Eq.~\eqref{eq:conf}, not the $w(c)$ of
 Table~\ref{tab:caps}) drops correlation by $0.070$: the capability ladder is first-order
 on the confidentiality channel. Capability severity thus matters exactly where intuition
 places it---secret reading---rather than universally, which sharpens rather than
@@ -519,7 +524,7 @@ A better ranking is only useful if it changes action. Given a budget of one
 permission revocation per identity, consequence-guided revocation removes
 $1.5$--$1.7\times$ more true engine-measured risk than privilege-count-guided
 revocation and up to $2.25\times$ more than random, on every one of the five
-topologies (Fig.~\ref{fig:remed}).
+topologies (figures in the reproducibility repository).
 
 Remediation is also where the proportionality lens of effects-based
 assessment~\cite{maathuis18,maathuis21} bites: a de-scoping action buys risk reduction
@@ -544,13 +549,6 @@ identity risk, far above the uniform $20\%$. Finally, the full battery scores $1
 order-preserving perturbation of Table~\ref{tab:caps}, degrading only when the
 \emph{ordering} is shuffled---an ordinal, defensible judgment, not specific constants.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.92\columnwidth]{figures/fig_e10_remediation.png}
-\caption{True risk removed by a single permission revocation, consequence-guided
-versus privilege-count versus random, across five topologies.}
-\label{fig:remed}
-\end{figure}
 
 
 \section{Discussion and Limitations}
@@ -559,21 +557,20 @@ versus privilege-count versus random, across five topologies.}
 production engine over five real topologies, and \emph{observed} live-cluster
 behavior---consequence-aware ranking is markedly more faithful to true risk than access,
 disagrees with it on the identities that matter most, and changes remediation for the
-better. The live-cluster experiments are the strongest evidence: they validate predicted
-availability blast radius against measured outages, and confidentiality and integrity
-against measured exfiltration and data-tampering; because ground truth there is observed
-rather than computed, they remove the computed-oracle circularity---decisively for
-availability, whose outcome is behaviorally measured rather than computed, and for
-confidentiality and integrity up to the shared-RBAC caveat below.
+better. The live-cluster experiments are the strongest evidence: availability validated
+against measured outages, confidentiality and integrity against measured exfiltration
+and tampering; ground truth there is observed, not computed, removing the
+computed-oracle circularity---decisively for availability, and for confidentiality and
+integrity up to the shared-RBAC caveat below.
 
 \textbf{Scope of the independence claim.} The fault-injection oracle and the estimator
 both derive connectivity from the same deployment manifests, so their independence is
 \emph{behavioral}---whether a declared edge actually propagates failure, given graceful
 degradation and caching the graph does not encode---not \emph{structural}; the
-divergences we report are evidence of that non-identity. To probe generalization we
-repeat the injection on Bookinfo (Section~\ref{sec:offdist}), where the same pattern and
-advantage hold, though both live studies are small and single-cluster and broader
-multi-cluster validation remains future work. The confidentiality and integrity
+divergences we report are evidence of that non-identity; and observed consequence covers five
+user-facing flows, so out-of-band impact (undelivered email) scores zero, favoring
+graceful-degradation findings. Bookinfo (Section~\ref{sec:offdist}) shows the same pattern off-distribution, though
+both live studies are small and single-cluster; broader validation remains future work. The confidentiality and integrity
 $\rho=1.00$ reflect that the estimator consumes the same real RBAC the compromise
 traverses, so their content is the contrast with the dependency-only $0.69$ and $0.26$,
 not the absolute value; the integrity study further verifies which stores each identity
@@ -588,8 +585,12 @@ consequential gap, since it now elevates exactly the secret-reading identities f
 which ``is it used?'' matters most. Finally, we treat the dependency graph as a
 static snapshot; real call graphs shift with traffic, circuit breakers, and feature
 flags, and the caching effects in Section~\ref{sec:real-avail} show static fidelity
-can decay. Integrating observed-usage and temporal-graph signals with the
-consequence signal is the clear extension.
+can decay. Privilege-escalation closure is orthogonal and composable---closing each
+identity's grants first, then propagating, only raises scores, so present rankings
+are a lower bound for escalation-capable identities. All identity populations are
+synthesized over real workloads, and the live evidence is Kubernetes RBAC
+only---cloud-IAM semantics (denies, conditions, role assumption) remain unmodeled.
+Integrating observed-usage and temporal-graph signals is the clear extension.
 
 \textbf{Industrial relevance.} Least-privilege programs prioritize by access; this work
 shows access and consequence diverge on real infrastructure, and that the information
@@ -609,9 +610,8 @@ exact synthetic ground truth, a production engine over five real topologies, and
 faithful to true risk. On real fault injection the prediction tracks observed outages at
 $\rho=0.987$ (reproducing off-distribution); on real read and write compromise it recovers
 the exfiltrated secrets and verified tampering reach, catching over-privilege that
-dependency-only views miss. As identity sprawl outpaces human review, prioritizing by
-propagated consequence rather than access is both necessary and, atop dependency
-analysis infrastructure already performs, practical.
+dependency-only views miss. Prioritizing identity risk by propagated consequence is both necessary and, atop
+dependency analysis infrastructure already performs, practical.
 
 \begin{thebibliography}{00}
 \bibitem{heatray} J.~Dunagan, A.~X.~Zheng, and D.~R.~Simon, ``Heat-ray: combating
